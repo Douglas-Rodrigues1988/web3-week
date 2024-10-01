@@ -26,8 +26,9 @@ contract BetCandidate {
     address owner;
     uint fee = 1000; // 10% (escala de 4 zeros)
     uint public netPrize;
+    uint public deadline; // Data limite para apostar
 
-    constructor() {
+    constructor(uint _deadline) {
         owner = msg.sender;
         dispute = Dispute({
             candidate1: "D. Trump",
@@ -37,13 +38,15 @@ contract BetCandidate {
             total1: 0,
             total2: 0,
             winner: 0
-        });    
+        });
+        deadline = _deadline; // Inicializando a da limite    
     }
 
     function bet(uint candidate) external payable {
         require(candidate == 1 || candidate == 2, "Invalid candidate");
         require(msg.value > 0, "Invalid bet");
         require(dispute.winner == 0, "Dispute closed");
+        require(block.timestamp <= deadline, "Betting period is over"); // Verificando se a data limite já passou
 
         // Verifica se já existe uma aposta e soma o valor da nova aposta
         Bet storage newBet = allBets[msg.sender];  // Usando 'storage' para modificar diretamente o valor no mapping
