@@ -1,3 +1,5 @@
+// DESAFIO: não permitir apostar depois de uma data x.
+
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.26;
