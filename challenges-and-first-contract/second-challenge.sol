@@ -1,12 +1,14 @@
+// DESAFIO: Não sacar comissão no finish, mas sim em uma função separada.
+
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.26;
 
 struct Bet {
-    uint amount;     
+    uint amount;
     uint candidate;
     uint timestamp;
-    bool claimed;    // Alterado para 'bool' para indicar se a aposta foi reivindicada
+    uint claimed;
 }
 
 struct Dispute {
@@ -24,9 +26,10 @@ contract BetCandidate {
     mapping (address => Bet) public allBets;
 
     address owner;
-    uint fee = 1000; // 10% (escala de 4 zeros)
+    uint fee = 1000; //10% (escala de 4 zeros)
     uint public netPrize;
-    uint public deadline = 1732924800; // Data limite para apostar
+    uint public deadline = 1732924800; // Data limite para apostar: 30 de novembro de 2024, às 00:00 UTC
+    uint public comission; // Comissão armazenada para ser sacada depois
 
     constructor() {
         owner = msg.sender;
@@ -38,8 +41,7 @@ contract BetCandidate {
             total1: 0,
             total2: 0,
             winner: 0
-        });
-   
+        });    
     }
 
     function bet(uint candidate) external payable {
@@ -48,15 +50,13 @@ contract BetCandidate {
         require(dispute.winner == 0, "Dispute closed");
         require(block.timestamp <= deadline, "Betting period is over"); // Verificando se a data limite já passou
 
-        // Verifica se já existe uma aposta e soma o valor da nova aposta
-        Bet storage newBet = allBets[msg.sender];  // Usando 'storage' para modificar diretamente o valor no mapping
-        newBet.amount += msg.value;  // Acumula o valor da aposta
-
-        // Define o candidato e o timestamp
+        Bet memory newBet;
+        newBet.amount = msg.value;
         newBet.candidate = candidate;
         newBet.timestamp = block.timestamp;
 
-        // Atualiza o total de apostas para o candidato escolhido
+        allBets[msg.sender] = newBet;
+
         if(candidate == 1)
             dispute.total1 += msg.value;
         else
@@ -71,25 +71,28 @@ contract BetCandidate {
         dispute.winner = winner;
 
         uint grossPrize = dispute.total1 + dispute.total2;
-        uint comission = (grossPrize * fee) / 1e4;
-        netPrize = grossPrize - comission;
+        comission = (grossPrize * fee) / 1e4; // Armazenando comissão
+        netPrize = grossPrize - comission; // Calculando o prêmio líquido
+    }
 
-        // Transferência segura da comissão para o dono do contrato
-        (bool success, ) = payable(owner).call{value: comission}("");
-        require(success, "Transfer failed");
+    // Função para sacar a comissão separadamente
+    function withdrawComissiom() external {
+        require(msg.sender == owner, "Only owner can withdraw the comission");
+        require(comission > 0, "No comission to withdraw");
+
+        uint comissionToWithdraw = comission;
+        comission = 0; // Reseta a comissão para evitar saque duplo
+        payable(owner).transfer(comissionToWithdraw);
     }
 
     function claim() external {
-        Bet storage userBet = allBets[msg.sender];  // Usando 'storage' para modificar o valor de 'claimed'
-        require(dispute.winner > 0 && dispute.winner == userBet.candidate && !userBet.claimed, "Invalid claim");
+        Bet memory userBet = allBets[msg.sender];
+        require(dispute.winner > 0 && dispute.winner == userBet.candidate && userBet.claimed == 0, "Invalid claim");
 
-        // Calcula a proporção do prêmio individual com base no total apostado no candidato vencedor
         uint winnerAmount = dispute.winner == 1 ? dispute.total1 : dispute.total2;
         uint ratio = (userBet.amount * 1e4) / winnerAmount;
         uint individualPrize = netPrize * ratio / 1e4;
-
-        // Marca a aposta como reivindicada e transfere o valor do prêmio
-        userBet.claimed = true;
+        allBets[msg.sender].claimed = individualPrize;
         payable(msg.sender).transfer(individualPrize);
     }  
 }
