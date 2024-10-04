@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: MIT
+
+//SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.26;
 
@@ -20,24 +21,25 @@ struct Dispute {
 }
 
 contract BetCandidate {
+
     Dispute public dispute;
-    mapping (address => Bet) public allBets;
+    mapping(address => Bet) public allBets;
 
     address owner;
-    uint fee = 1000; //10% (escala de 4 zeros)
+    uint fee = 1000;//10% (escala de 4 zeros)
     uint public netPrize;
 
-    constructor() {
+    constructor(){
         owner = msg.sender;
         dispute = Dispute({
             candidate1: "D. Trump",
             candidate2: "K. Harris",
             image1: "http://bit.ly/3zmSfiA",
-            image2: "http://bit.ly/4gF4mY",
+            image2: "http://bit.ly/4gF4mYO",
             total1: 0,
             total2: 0,
             winner: 0
-        });    
+        });
     }
 
     function bet(uint candidate) external payable {
@@ -55,7 +57,7 @@ contract BetCandidate {
         if(candidate == 1)
             dispute.total1 += msg.value;
         else
-            dispute.total2 += msg.value;
+            dispute.total2 += msg.value;    
     }
 
     function finish(uint winner) external {
@@ -66,10 +68,10 @@ contract BetCandidate {
         dispute.winner = winner;
 
         uint grossPrize = dispute.total1 + dispute.total2;
-        uint comission = (grossPrize * fee) / 1e4;
-        netPrize = grossPrize - comission;
+        uint commission = (grossPrize * fee) / 1e4;
+        netPrize = grossPrize - commission;
 
-        payable(owner).transfer(comission);
+        payable(owner).transfer(commission);
     }
 
     function claim() external {
@@ -81,5 +83,6 @@ contract BetCandidate {
         uint individualPrize = netPrize * ratio / 1e4;
         allBets[msg.sender].claimed = individualPrize;
         payable(msg.sender).transfer(individualPrize);
-    }  
+    }
+
 }
